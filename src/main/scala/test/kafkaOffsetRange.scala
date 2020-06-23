@@ -56,7 +56,7 @@ object kafkaOffsetRange {
       val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
       rdd.foreachPartition { iter =>
         val o: OffsetRange = offsetRanges(TaskContext.get.partitionId)
-        println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+        println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
         println(s"${o.topic} ${o.partition} ${o.fromOffset} ${o.untilOffset}")
       }
     }
