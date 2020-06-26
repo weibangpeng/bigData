@@ -59,6 +59,7 @@ object kafkaOffsetRange {
         println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
         println(s"${o.topic} ${o.partition} ${o.fromOffset} ${o.untilOffset}")
       }
+      messages.asInstanceOf[CanCommitOffsets].commitAsync(offsetRanges)
     }
     // Start the computation
     ssc.start()
