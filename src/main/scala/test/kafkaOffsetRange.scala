@@ -1,10 +1,15 @@
 package test
 
-import org.apache.kafka.clients.consumer.ConsumerConfig
+import java.{lang, util}
+
+import org.apache.kafka.clients.consumer.{Consumer, ConsumerConfig}
+import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.streaming._
 import org.apache.spark.streaming.kafka010._
+
+import scala.collection.JavaConverters._
 
 /**
  * Consumes messages from one or more topics in Kafka and does wordcount.
@@ -45,6 +50,7 @@ object kafkaOffsetRange {
       ConsumerConfig.GROUP_ID_CONFIG -> groupId,
       ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG -> classOf[StringDeserializer],
       ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[StringDeserializer])
+
     val messages = KafkaUtils.createDirectStream[String, String](
       ssc,
       LocationStrategies.PreferConsistent,
