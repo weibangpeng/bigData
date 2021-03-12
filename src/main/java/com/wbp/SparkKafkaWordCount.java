@@ -46,6 +46,7 @@ public  class SparkKafkaWordCount {
         }
         SpringApplication application =new SpringApplication(SparkKafkaWordCount.class);
         application.setWebEnvironment(false);
+
         application.setRegisterShutdownHook(false);
         applicationContext =  application.run();
         SparkKafkaWordCount directKafkaWordCount = applicationContext.getBean(SparkKafkaWordCount.class);
