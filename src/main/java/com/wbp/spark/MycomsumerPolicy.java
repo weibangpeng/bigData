@@ -1,4 +1,4 @@
-package com.wbp;
+package com.wbp.spark;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -16,7 +16,7 @@ public class MycomsumerPolicy extends ConsumerStrategy <String,Object>{
     int startType;
     Map<TopicPartition, Long> offset;
 
-    MycomsumerPolicy(Map<String, Object> kafkaParams, List<String> topics, int startType, Map<TopicPartition, Long> offset) {
+    public MycomsumerPolicy(Map<String, Object> kafkaParams, List<String> topics, int startType, Map<TopicPartition, Long> offset) {
         this.kafkaParams = kafkaParams;
         this.topics = topics;
         this.startType = startType;

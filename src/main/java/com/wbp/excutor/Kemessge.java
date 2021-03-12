@@ -1,4 +1,4 @@
-package com.wbp;
+package com.wbp.excutor;
 
 
 import com.alibaba.fastjson.JSONObject;
@@ -36,5 +36,16 @@ public class Kemessge {
 
     public Long getOffset() {
         return offset;
+    }
+
+    @Override
+    public String toString() {
+        return "Kemessge{" +
+                "key='" + key + '\'' +
+                ", message=" + message.toString() +
+                ", Topic='" + Topic + '\'' +
+                ", Partition=" + Partition +
+                ", offset=" + offset +
+                '}';
     }
 }

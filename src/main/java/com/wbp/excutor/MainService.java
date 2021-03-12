@@ -1,8 +1,11 @@
-package com.wbp;
+package com.wbp.excutor;
 
 
+import com.wbp.app.JarProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+
 import java.util.List;
 
 @Service

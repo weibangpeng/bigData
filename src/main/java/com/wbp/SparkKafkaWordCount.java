@@ -1,63 +1,39 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+
 
 package com.wbp;
 
-import java.util.*;
-import java.util.regex.Pattern;
-
-import org.apache.kafka.common.TopicPartition;
-import org.apache.spark.TaskContext;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.VoidFunction;
-import org.apache.spark.api.java.function.VoidFunction2;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.streaming.Time;
-import org.apache.spark.streaming.kafka010.*;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.context.ConfigurableApplicationContext;
-import scala.Tuple2;
-
+import com.wbp.annotation.EnableMasterSpringBoot;
+import com.wbp.excutor.Kemessge;
+import com.wbp.excutor.MessageTransformer;
+import com.wbp.excutor.StreamContext;
+import com.wbp.excutor.StreamExcutor;
+import com.wbp.spark.MycomsumerPolicy;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
-
 import org.apache.spark.SparkConf;
-import org.apache.spark.streaming.api.java.*;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.VoidFunction2;
 import org.apache.spark.streaming.Durations;
+import org.apache.spark.streaming.Time;
+import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.kafka010.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
+
+import java.util.*;
 
 
-/**
- * Consumes messages from one or more topics in Kafka and does wordcount.
- * Usage: JavaDirectKafkaWordCount <brokers> <groupId> <topics>
- *   <brokers> is a list of one or more Kafka brokers
- *   <groupId> is a consumer group name to consume from topics
- *   <topics> is a list of one or more kafka topics to consume from
- *
- * Example:
- *    $ bin/run-example streaming.JavaDirectKafkaWordCount broker1-host:port,broker2-host:port \
- *      consumer-group topic1,topic2
- */
+@EnableMasterSpringBoot
+public  class SparkKafkaWordCount {
 
-@EnableWorkerSpringBoot
-public final class JavaDirectKafkaWordCount {
-    private static final Pattern SPACE = Pattern.compile(" ");
-
+    static ConfigurableApplicationContext  applicationContext;
+    Logger logger = LoggerFactory.getLogger(SparkKafkaWordCount.class);
     private Map<Time,OffsetRange[]> offsetRangMap = new HashMap<>();
     public static void main(String[] args)  {
         if (args.length < 4) {
@@ -68,14 +44,15 @@ public final class JavaDirectKafkaWordCount {
                     "  <startType> is a int ,0 frombegining \n\n");
             System.exit(1);
         }
-        SpringApplication application =new SpringApplication(JavaDirectKafkaWordCount.class);
-        application.setWebApplicationType(WebApplicationType.NONE);
-        ConfigurableApplicationContext applicationContext =  application.run();
-        JavaDirectKafkaWordCount directKafkaWordCount = applicationContext.getBean(JavaDirectKafkaWordCount.class);
-        directKafkaWordCount.start(args);
+        SpringApplication application =new SpringApplication(SparkKafkaWordCount.class);
+        application.setWebEnvironment(false);
+        application.setRegisterShutdownHook(false);
+        applicationContext =  application.run();
+        SparkKafkaWordCount directKafkaWordCount = applicationContext.getBean(SparkKafkaWordCount.class);
+        directKafkaWordCount.start(args,new StreamContext(applicationContext));
     }
 
-    void start(String[] args) {
+    void start(String[] args,StreamContext context) {
         String brokers = args[0];
         String groupId = args[1];
         String topics = args[2];
@@ -89,6 +66,7 @@ public final class JavaDirectKafkaWordCount {
         Map<String, Object> kafkaParams = new HashMap<>();
         kafkaParams.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
         kafkaParams.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+
         kafkaParams.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         kafkaParams.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         Map<TopicPartition, Long> offset = new HashMap<>();
@@ -105,24 +83,18 @@ public final class JavaDirectKafkaWordCount {
             offsetRangMap.put(time,((HasOffsetRanges) rdd.rdd()).offsetRanges());
             return rdd;
         });
-        /*messages.foreachRDD(rdd ->{
-            OffsetRange[] offsetRanges = ((HasOffsetRanges) rdd.rdd()).offsetRanges();
-            ((CanCommitOffsets) messages.inputDStream()).commitAsync(offsetRanges,(offsetcb,exception)->{
-                System.out.println("commitAsync :"+offsetcb);
-            });
-        });*/
+
         JavaDStream<Kemessge> Kemessges= dStream.map(new MessageTransformer());
         Kemessges.foreachRDD((VoidFunction2<JavaRDD<Kemessge>, Time>) (rdd, time) -> {
             OffsetRange[] offsetRanges = offsetRangMap.remove(time);
             for (int i = 0;i<offsetRanges.length;i++){
                 OffsetRange o = offsetRanges[i];
-                System.out.println(
+                logger.info(
                         o.topic() + " " + o.partition() + " " + o.fromOffset() + " " + o.untilOffset());
             }
-
-            rdd.foreachPartition(new StreamExcutor());
+            rdd.foreachPartition(new StreamExcutor(context));
             canCommitOffsets.commitAsync(offsetRanges,(offsetcb,exception)->{
-                System.out.println("commitAsync :"+offsetcb);
+                logger.info("commitAsync :"+offsetcb);
             });
 
         });
@@ -132,8 +104,9 @@ public final class JavaDirectKafkaWordCount {
         try {
             jssc.awaitTermination();
         }catch (Exception e){
-            e.printStackTrace();
+            logger.info("",e);
         }
 
     }
+
 }
